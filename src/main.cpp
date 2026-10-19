@@ -1,49 +1,110 @@
-#include <WiFi.h>
-#include <WebServer.h>
-#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <Arduino.h>
+#include <LittleFS.h>
+#include <Audio.h>
 
-// Objek WebServer standar untuk halaman kustom Anda setelah terhubung
-WebServer server(80);
+Audio audio;
 
-void handleRoot() {
-  server.send(200, "text/html", "<h1>Halo dari ESP32-S3!</h1><p>Wi-Fi berhasil terhubung dan Captive Portal sukses.</p>");
+// I2S -> GY-PCM5102A
+#define I2S_BCLK 4
+#define I2S_DOUT 5
+#define I2S_LRCK 6
+
+const char *MP3_PATH =
+    "/A Memorable Fancy.mp3";
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(5000);
+
+    Serial.println();
+    Serial.println("=== ESP32-S3 MP3 TEST ===");
+
+    // Jangan format otomatis kalau mount gagal
+    if (!LittleFS.begin(true, "/littlefs", 10, "spiffs"))
+    {
+        Serial.println("LittleFS gagal mount!");
+        if (!LittleFS.begin(true, "/littlefs", 10, "spiffs"))
+        {
+            Serial.println("LittleFS gagal mount! Mencoba format...");
+            if (LittleFS.format())
+            {
+                Serial.println("Format berhasil, mounting ulang...");
+                if (!LittleFS.begin(false, "/littlefs", 10, "spiffs"))
+                {
+                    Serial.println("Masih gagal mount setelah format!");
+                    return;
+                }
+            }
+            else
+            {
+                Serial.println("Format gagal!");
+                return;
+            }
+        }
+        Serial.println("LittleFS berhasil mount!");
+    }
+    else
+    {
+        Serial.println("LittleFS berhasil mount!");
+
+        File root = LittleFS.open("/");
+        File file = root.openNextFile();
+
+        while (file)
+        {
+            Serial.printf("File: %s | Size: %u bytes\n",
+                          file.name(),
+                          (unsigned int)file.size());
+            file = root.openNextFile();
+        }
+    }
+
+    // Serial.println("[OK] LittleFS mounted");
+
+    if (!LittleFS.exists(MP3_PATH))
+    {
+        Serial.printf("[ERROR] File tidak ditemukan: %s\n",
+                      MP3_PATH);
+        Serial.println("Periksa folder data/ dan uploadfs.");
+        return;
+    }
+
+    File mp3 = LittleFS.open(MP3_PATH, "r");
+
+    if (!mp3)
+    {
+        Serial.println("[ERROR] File MP3 gagal dibuka!");
+        return;
+    }
+
+    Serial.printf("[OK] File ditemukan, ukuran: %u bytes\n",
+                  (unsigned int)mp3.size());
+    mp3.close();
+
+    audio.setPinout(I2S_BCLK, I2S_LRCK, I2S_DOUT);
+    audio.setVolume(15); // Rentang umum: 0-21
+
+    Serial.println("[INFO] Memulai playback MP3...");
+
+    if (!audio.connecttoFS(LittleFS, MP3_PATH))
+    {
+        Serial.println("[ERROR] Gagal memulai playback!");
+    }
+    else
+    {
+        Serial.println("[OK] Permintaan playback dikirim");
+    }
 }
 
-void setup() {
-  // Inisialisasi Serial Monitor
-  Serial.begin(115200);
-  delay(1000);
-
-  // Inisialisasi WiFiManager
-  WiFiManager wm;
-
-  // Jika ingin mereset pengaturan WiFi yang tersimpan sebelumnya untuk pengujian, aktifkan baris di bawah ini sekali:
-  wm.resetSettings();
-
-  // Memulai portal konfigurasi otomatis
-  // Jika gagal terhubung ke WiFi sebelumnya, ESP32 akan membuat AP dengan nama "ESP32-S3-Config"
-  Serial.println("Memulai WiFiManager...");
-  bool res = wm.autoConnect("ESP32-S3-Config", "123456789"); // Tambahkan password jika perlu, misal: wm.autoConnect("ESP32-S3-Config", "password123");
-
-  if (!res) {
-    Serial.println("Gagal terhubung atau timeout konfigurasi.");
-    // ESP32 akan melakukan restart atau masuk mode deep sleep sesuai kebutuhan
-    ESP.restart();
-    delay(1000);
-  } else {
-    // Berhasil terhubung ke Wi-Fi
-    Serial.println("Berhasil terhubung ke jaringan Wi-Fi!");
-    Serial.print("Alamat IP ESP32-S3: ");
-    Serial.println(WiFi.localIP());
-  }
-
-  // Menyiapkan rute Web Server setelah terhubung
-  server.on("/", handleRoot);
-  server.begin();
-  Serial.println("HTTP server aktif.");
+void loop()
+{
+    audio.loop();
+    delay(1);
 }
 
-void loop() {
-  // Menangani klien web yang mengakses server
-  server.handleClient();
+void audio_info(const char *info)
+{
+    Serial.print("[AUDIO] Audio Info: ");
+    Serial.println(info);
 }
