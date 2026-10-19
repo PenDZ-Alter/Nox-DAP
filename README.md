@@ -13,7 +13,8 @@ A Custom DAP (Digital Audio Portable) with support PCM and Web Dashboard
 |:-:|:-:|:-:|
 | Wifi Connect | Captive Portal/Web | 20% |
 | Dashboard | - | 0% |
-| UI (with OLED) | `SSD1306` | 2% |
+| UI (with OLED) | - | 0% |
 | SD Card Support | - | 0% |
+| Playback Audio | `AudioI2S` | 5% |
 | Parametric EQ (5-band) | - | 0% |
 | Spotify Connect | `cspot` | 0% |
