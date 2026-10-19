@@ -9,6 +9,9 @@ A Custom DAP (Digital Audio Portable) with support PCM and Web Dashboard
 > [!NOTE]
 > This features is still in development stage
 
+> [!NOTE]
+> If Spotify Connect features allow, I will add it at the end.
+
 | Features | Library/Apps | Progress |
 |:-:|:-:|:-:|
 | Wifi Connect | Captive Portal/Web | 20% |
